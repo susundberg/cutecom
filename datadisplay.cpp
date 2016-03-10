@@ -259,17 +259,51 @@ void DataDisplay::constructDisplayLine(const QByteArray &inData)
                 line.data += b;
             }
 
-        } else {
-            if (b == '\0') {
-                line.data += "<break>\n";
-                m_previous_ended_with_nl = true;
-                m_data.append(line);
-                line = DisplayLine();
-                line.prefix = m_timestamp;
-                continue;
-            } else {
-                line.data += QString("<0x%1>").arg(b & 0xff, 2, 16, QChar('0'));
+        } 
+        else 
+        {
+            // Check if we have multiple zeros here -- concatenate them to a single printe
+            int nbreaks = 0;
+            
+            QString to_print;
+            
+            if (b == '\0') 
+            {
+               to_print="break";
             }
+            else
+            {
+               to_print = QString("0x%1").arg(b & 0xff, 2, 16, QChar('0'));
+            }
+            
+            for ( int nbreaks_loop = i; nbreaks_loop < inData.size(); nbreaks_loop++)
+            {
+               if ( inData.at( nbreaks_loop ) != (int)b )
+                  break;
+               
+               nbreaks += 1;
+               if ( nbreaks > 999 ) 
+               {  // make sure our padding to 3 characters dont go over
+                  line.data += QString("<%1 x %2>\n").arg( to_print ).arg( 999, 3, 10, QChar('0') );
+                  nbreaks -= 999;
+               }
+               
+            }
+
+            if ( nbreaks == 1 ) {
+               // Nice single '<break>' print
+               line.data += QString("<%1>\n").arg( to_print );
+            }
+            else  { 
+               // and multi print when needed
+               line.data += QString("<%1 x %2>\n").arg( to_print ).arg( nbreaks, 3, 10, QChar('0') );
+               i += (nbreaks - 1);
+            }
+            
+            m_previous_ended_with_nl = true;
+            m_data.append(line);
+            line = DisplayLine();
+            line.prefix = m_timestamp;
         }
     }
     if (!line.data.isEmpty()) {
